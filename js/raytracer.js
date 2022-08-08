@@ -1,8 +1,8 @@
-import { DotProduct, Length, Multiply, Add, Subtract, Clamp } from './helperfunctions.js'
+import { DotProduct, Length, MultiplyScalarAndVector, Add, Subtract, Clamp, MultiplyMatrixAndVector } from './helperfunctions.js'
 import { Light } from './light.js'
 import { canvas } from './canvasaccess.js'
 import { PutPixel, UpdateCanvas, ClearAll } from './canvasfunctions.js'
-import { viewport_size, projection_plane_z, camera_position, background_color, spheres, lights } from './scenesetup.js'
+import { viewport_size, projection_plane_z, camera_position, camera_rotation, background_color, spheres, lights } from './scenesetup.js'
 
 // ======================================================================
 //  A raytracer with diffuse and specular illumination, and shadows.
@@ -27,7 +27,7 @@ let CanvasToViewport = function (p2d) {
 
 // Computes the reflection of ray_direction_r respect to surface_normal_n.
 let ReflectRay = function (ray_direction_r, surface_normal_n) {
-    return Subtract(Multiply(2 * DotProduct(ray_direction_r, surface_normal_n), surface_normal_n), ray_direction_r);
+    return Subtract(MultiplyScalarAndVector(2 * DotProduct(ray_direction_r, surface_normal_n), surface_normal_n), ray_direction_r);
 }
 
 // Computes the intersection of a ray and a sphere. Returns the values
@@ -41,7 +41,7 @@ let IntersectRaySphere = function (ray_origin, ray_direction, sphere) {
 
     let discriminant = k2 * k2 - 4 * k1 * k3
     if (discriminant < 0) {
-        return [Infinity, Infinity];
+        return [Infinity, Infinity]
     }
 
     let t1 = (-k2 + Math.sqrt(discriminant)) / (2 * k1)
@@ -54,8 +54,8 @@ let IntersectRaySphere = function (ray_origin, ray_direction, sphere) {
 // fullAmountOfLightReceivedAtPointP_Ip = ambientLightIntensity_Ia
 // + Sum_of[ (normalVector_N dot lightVector_Li) / (norm_of_normalVector_N * norm_of_lightVector_Li)]for_i=1_to_n
 let ComputeLighting = function (point, surface_normal_n, view_vector_v, specular) {
-    let light_intensity = 0;
-    let surface_normal_n_length = Length(surface_normal_n); // Should be 1.0, but just in case...
+    let light_intensity = 0
+    let surface_normal_n_length = Length(surface_normal_n) // Should be 1.0, but just in case...
     let view_vector_v_length = Length(view_vector_v)
 
     for (let i = 0; i < lights.length; i++) {
@@ -74,9 +74,9 @@ let ComputeLighting = function (point, surface_normal_n, view_vector_v, specular
             }
 
             // Shadow check.
-            let blocker = ClosestIntersection(point, light_vector_l, EPSILON, t_max);
+            let blocker = ClosestIntersection(point, light_vector_l, EPSILON, t_max)
             if (blocker) {
-                continue;
+                continue
             }
 
             // Diffuse reflection.
@@ -130,7 +130,7 @@ let ClosestIntersection = function (ray_origin, ray_direction, min_t, max_t) {
 // and returns the color of the canvas pixel crossed by the ray R.
 let TraceRay = function (ray_origin_o, ray_direction_d, min_t, max_t, recursion_depth) {
     let intersection = ClosestIntersection(ray_origin_o, ray_direction_d, min_t, max_t)
-    
+
     if (!intersection) {
         return background_color
     }
@@ -138,24 +138,25 @@ let TraceRay = function (ray_origin_o, ray_direction_d, min_t, max_t, recursion_
     let closest_sphere = intersection[0]
     let closest_t = intersection[1]
 
-    let point = Add(ray_origin_o, Multiply(closest_t, ray_direction_d))
+    let point = Add(ray_origin_o, MultiplyScalarAndVector(closest_t, ray_direction_d))
     let surface_normal_n = Subtract(point, closest_sphere.center)
-    surface_normal_n = Multiply(1.0 / Length(surface_normal_n), surface_normal_n)
+    surface_normal_n = MultiplyScalarAndVector(1.0 / Length(surface_normal_n), surface_normal_n)
 
-    let view_vector_v = Multiply(-1, ray_direction_d)
+    let view_vector_v = MultiplyScalarAndVector(-1, ray_direction_d)
     let lighting = ComputeLighting(point, surface_normal_n, view_vector_v, closest_sphere.specular)
-    let local_color = Multiply(lighting, closest_sphere.color)
+    let local_color = MultiplyScalarAndVector(lighting, closest_sphere.color)
 
     // If we hit the recursion limit or the object is not reflective, we're done
     if (closest_sphere.reflective <= 0 || recursion_depth <= 0) {
         return local_color;
     }
 
+    // Compute the reflected color
     let reflected_ray = ReflectRay(view_vector_v, surface_normal_n)
     let reflected_color = TraceRay(point, reflected_ray, EPSILON, Infinity, recursion_depth - 1)
 
-    return Add(Multiply(1 - closest_sphere.reflective, local_color),
-        Multiply(closest_sphere.reflective, reflected_color))
+    return Add(MultiplyScalarAndVector(1 - closest_sphere.reflective, local_color),
+        MultiplyScalarAndVector(closest_sphere.reflective, reflected_color))
 }
 
 let SetShadowEpsilon = function (epsilon) {
@@ -179,6 +180,10 @@ let Render = function () {
                 // and y passed as arguments to the CanvasToViewport() function.
                 let ray_direction = CanvasToViewport([x, y])
 
+                // Apply the camera’s rotation matrix to the direction of the ray we’re about to trace. 
+                // The camera’s rotation matrix describes the camera's orientation in space.
+                ray_direction = MultiplyMatrixAndVector(camera_rotation, ray_direction)
+
                 // 2- Find the color of the pixel whose canvas coordinates are the x
                 // and y coordinates that were passed as arguments to the CanvasToViewport() function.
                 let pixel_color = TraceRay(camera_position, ray_direction, 1, Infinity, recursion_depth)
@@ -192,5 +197,4 @@ let Render = function () {
 }
 
 export { Render, SetShadowEpsilon }
-
 

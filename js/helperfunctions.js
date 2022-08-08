@@ -12,10 +12,23 @@ let Length = function (vec) {
     return Math.sqrt(DotProduct(vec, vec))
 }
 
-// Computes k * vec.
-let Multiply = function (k, vec) {
+// Multiplies a scalar and a vector.
+let MultiplyScalarAndVector = function (k, vec) {
     return [k * vec[0], k * vec[1], k * vec[2]]
 }
+
+// Multiplies a matrix and a vector.
+let MultiplyMatrixAndVector = function(mat, vec) {
+    let result = [0, 0, 0];
+  
+    for (let i = 0; i < 3; i++) {
+      for (let j = 0; j < 3; j++) {
+        result[i] += vec[j]*mat[i][j];
+      }
+    }
+  
+    return result;
+  }
 
 // Computes v1 + v2.
 let Add = function (v1, v2) {
@@ -36,4 +49,4 @@ let Clamp = function (vec) {
     ]
 }
 
-export { DotProduct, Length, Multiply, Add, Subtract, Clamp }
+export { DotProduct, Length, MultiplyScalarAndVector, MultiplyMatrixAndVector, Add, Subtract, Clamp }
